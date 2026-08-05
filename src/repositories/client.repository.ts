@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { db } from "@/database";
 import { isPgError, PG_ERROR_CODE } from "@/database/pgError";
 import { ValidationError } from "@/lib/errors";
@@ -20,7 +21,7 @@ export type Client = {
     last_name: string;
     gender_code: string;         // gender code — used both as create/update payload field and on rows read from the DB
     gender_label?: string;       // present on rows read from the DB (display only)
-    dob: IsoDateString | Date;   // string on create/update payloads, Date on rows read from the DB
+    dob: IsoDateString;
     ndis_number: string;
     email: string;
     phone_number?: string | null;
@@ -80,7 +81,7 @@ export async function GetClients(filters: ClientFilters): Promise<{ data: Client
                 "client.last_name",
                 "gender.code as gender_code",
                 "gender.label as gender_label",
-                "client.dob",
+                sql<string>`client.dob::text`.as("dob"),
                 "client.ndis_number",
                 "client.email",
                 "client.phone_number",
@@ -110,7 +111,7 @@ export async function GetClients(filters: ClientFilters): Promise<{ data: Client
             last_name: row.last_name,
             gender_code: row.gender_code,
             gender_label: row.gender_label,
-            dob: row.dob,
+            dob: row.dob as IsoDateString,
             ndis_number: row.ndis_number,
             email: row.email,
             phone_number: row.phone_number,
@@ -146,7 +147,7 @@ export async function AddClient(clientData: Client) {
                 first_name: clientData.first_name,
                 last_name: clientData.last_name,
                 gender_id: gender.id,
-                dob: new Date(clientData.dob),
+                dob: clientData.dob,
                 ndis_number: clientData.ndis_number,
                 email: clientData.email,
                 phone_number: clientData.phone_number ?? null,
@@ -167,6 +168,25 @@ export async function AddClient(clientData: Client) {
     }
 }
 
+export async function DeleteClient(clientId: number) {
+    const existing = await db
+        .selectFrom("client")
+        .select("id")
+        .where("id", "=", clientId)
+        .where("deleted_at", "is", null)
+        .executeTakeFirst();
+
+    if (!existing) {
+        throw new ValidationError({ id: `Client with ID ${clientId} does not exist.` });
+    }
+
+    await db
+        .updateTable("client")
+        .set({ deleted_at: new Date() })
+        .where("id", "=", clientId)
+        .execute();
+}
+
 export async function UpdateClient(clientId: number, clientData: Client) {
     if (typeof clientData.dob !== "string" || !isValidIsoDate(clientData.dob)) {
         throw new ValidationError({ dob: "Date of birth must be a valid ISO date (YYYY-MM-DD)." });
@@ -174,7 +194,7 @@ export async function UpdateClient(clientId: number, clientData: Client) {
 
     const existing = await db
         .selectFrom("client")
-        .select("id")
+        .select(["id", "deactivated_at"])
         .where("id", "=", clientId)
         .where("deleted_at", "is", null)
         .executeTakeFirst();
@@ -194,6 +214,8 @@ export async function UpdateClient(clientId: number, clientData: Client) {
         throw new ValidationError({ gender_code: `Unknown gender code: ${clientData.gender_code}` });
     }
 
+    const deactivated_at = clientData.status === "inactive" ? existing.deactivated_at ?? new Date() : null;
+
     try {
         return await db
             .updateTable("client")
@@ -201,13 +223,14 @@ export async function UpdateClient(clientId: number, clientData: Client) {
                 first_name: clientData.first_name,
                 last_name: clientData.last_name,
                 gender_id: gender.id,
-                dob: new Date(clientData.dob),
+                dob: clientData.dob,
                 ndis_number: clientData.ndis_number,
                 email: clientData.email,
                 phone_number: clientData.phone_number ?? null,
                 address: clientData.address,
                 unit_building: clientData.unit_building ?? null,
                 pricing_region: clientData.pricing_region,
+                deactivated_at,
             })
             .where("id", "=", clientId)
             .returning(["id"])

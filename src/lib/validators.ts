@@ -60,6 +60,10 @@ export function validateClientData(body: unknown): Client {
         errors.pricing_region = "Pricing Region is required.";
     }
 
+    if (input.status !== undefined && input.status !== "active" && input.status !== "inactive") {
+        errors.status = "Status must be 'active' or 'inactive'.";
+    }
+
     if (Object.keys(errors).length > 0) {
         throw new ValidationError(errors);
     }
@@ -75,5 +79,6 @@ export function validateClientData(body: unknown): Client {
         address: (input.address as string).trim(),
         unit_building: (input.unit_building as string | undefined)?.trim() || undefined,
         pricing_region: input.pricing_region as string,
+        status: input.status as Client["status"],
     };
 }

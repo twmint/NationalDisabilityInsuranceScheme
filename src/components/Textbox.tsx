@@ -5,7 +5,7 @@ import { Input, InputProps, Typography } from "antd";
 
 export type TextboxProps = InputProps & {
   label?: string;
-  placeholder: string;
+  placeholder?: string;
 };
 
 const Textbox: React.FC<TextboxProps> = ({ label, ...rest }) => {

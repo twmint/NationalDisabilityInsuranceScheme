@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         const body: unknown = await request.json();
         const clientData = validateClientData(body);
         const result = await AddClient(clientData);
-        return NextResponse.json(result, { status: 201 });
+        return NextResponse.json({ data: result }, { status: 201 });
     } catch (error) {
         if (error instanceof ValidationError) {
             return NextResponse.json(
@@ -55,8 +55,4 @@ export async function POST(request: NextRequest) {
             { status: 500 }
         );
     }
-}
-
-export async function PATCH(request: NextRequest) {
-    const body: unknown = await request.json();
 }

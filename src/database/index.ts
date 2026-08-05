@@ -24,7 +24,7 @@ interface ClientTable {
     last_name: string;
     name_parts: Generated<string[]>;
     gender_id: number;
-    dob: Date;
+    dob: string;
     ndis_number: string;
     email: string;
     phone_number: string | null;

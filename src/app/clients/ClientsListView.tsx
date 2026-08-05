@@ -1,12 +1,12 @@
 "use client";
 
-import { Form } from "antd";
+import { Form, Switch } from "antd";
 import ListView from "@/components/ListView";
 import Button from "@/components/Button";
 import Textbox from "@/components/Textbox";
 import DropdownList, { DropdownOption } from "@/components/DropdownList";
 import DatePicker from "@/components/DatePicker";
-import { CheckCircleTwoTone, CloseCircleTwoTone } from "@ant-design/icons";
+import { CheckCircleTwoTone, CheckOutlined, CloseCircleTwoTone, CloseOutlined } from "@ant-design/icons";
 import { Client } from "@/repositories/client.repository";
 import dayjs from "dayjs";
 
@@ -24,8 +24,8 @@ export default function ClientsListView({
             columns={[
                 { key: "first_name", label: "First Name" },
                 { key: "last_name", label: "Last Name" },
-                { key: "gender_label" , label: "Gender" },
-                { key: "dob", label: "Date of Birth", render: (value) => (value ? dayjs(value as string).format("DD/MM/YYYY") : "-") },
+                { key: "gender_label", label: "Gender" },
+                { key: "dob", label: "Date of Birth", render: (value) => (value ? dayjs(value as string).format("DD/MM/YYYY") : "") },
                 { key: "ndis_number", label: "NDIS Number" },
                 { key: "email", label: "Email" },
                 { key: "phone_number", label: "Phone Number" },
@@ -42,12 +42,10 @@ export default function ClientsListView({
                 {
                     label: "Delete",
                     danger: true,
-                    onClick: () => {
-                        console.log("Delete clicked for row:", row);
-                    },
+                    onClick: () => ctx.deleteRow(row),
                 },
             ]}
-            renderForm={(record) => (
+            renderForm={(record, actions) => (
                 <div className="flex flex-col">
                     <Form.Item name="first_name" label="First Name" rules={[{ required: true, whitespace: true, message: "First name is required." }]}>
                         <Textbox placeholder="eg. John" />
@@ -56,12 +54,13 @@ export default function ClientsListView({
                         <Textbox placeholder="eg. Doe" />
                     </Form.Item>
                     <Form.Item name="gender_code" label="Gender" rules={[{ required: true, message: "Gender is required." }]}>
-                        <DropdownList placeholder="Select gender" options={genderOptions} />
+                        <DropdownList options={genderOptions} />
                     </Form.Item>
                     <Form.Item
                         name="dob"
                         label="Date of Birth"
-                        rules={[{ required: true, message: "Date of birth is required." }]}>
+                        rules={[{ required: true, message: "Date of birth is required." }]}
+                    >
                         <DatePicker />
                     </Form.Item>
                     <Form.Item  
@@ -85,14 +84,30 @@ export default function ClientsListView({
                         <Textbox placeholder="eg. 1234567890" />
                     </Form.Item>
                     <Form.Item name="address" label="Address" rules={[{ required: true, whitespace: true, message: "Address is required." }]}>
-                        <Textbox placeholder="eg. 1 Example Street" />
+                        <Textbox />
                     </Form.Item>
                     <Form.Item name="unit_building" label="Unit/Building">
-                        <Textbox placeholder="eg. Unit 3" />
+                        <Textbox />
                     </Form.Item>
                     <Form.Item name="pricing_region" label="Pricing Region" rules={[{ required: true, message: "Pricing region is required." }]}>
-                        <DropdownList placeholder="Select pricing region" options={pricingRegionOptions} />
+                        <DropdownList options={pricingRegionOptions} />
                     </Form.Item>
+                    <Form.Item
+                        name="status"
+                        label="Active"
+                        getValueProps={(value) => ({ checked: (value ?? "active") === "active" })}
+                        normalize={(checked) => (checked ? "active" : "inactive")}
+                    >
+                        <Switch checkedChildren={<CheckOutlined />} unCheckedChildren={<CloseOutlined />} />
+                    </Form.Item>
+                    <div className="flex justify-end gap-2 mt-2">
+                        <Button onClick={actions.cancel} disabled={actions.submitting}>
+                            Cancel
+                        </Button>
+                        <Button type="primary" loading={actions.submitting} onClick={actions.submit}>
+                            Save
+                        </Button>
+                    </div>
                 </div>
             )}
         >

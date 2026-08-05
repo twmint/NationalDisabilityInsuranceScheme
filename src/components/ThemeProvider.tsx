@@ -1,6 +1,6 @@
 "use client"
 
-import { ConfigProvider, theme } from 'antd';
+import { App, ConfigProvider, theme } from 'antd';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { themeTokens, darkThemeTokens } from "@/theme/tokens";
 import { createContext, useContext, useState, useEffect } from 'react';
@@ -33,7 +33,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
                     token: mode === 'dark' ? darkThemeTokens : themeTokens,
                     components: { Menu: { itemMarginBlock: 15 } }
                 }}>
-                    {children}
+                    <App style={{ display: "contents" }}>{children}</App>
                 </ConfigProvider>
             </AntdRegistry>
         </ThemeModeContext.Provider>

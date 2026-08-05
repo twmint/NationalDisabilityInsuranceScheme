@@ -11,7 +11,7 @@ export type EntryFormProps<T> = {
 
 function EntryForm<T extends Record<string, unknown>>({ children, onSubmit, record, form }: EntryFormProps<T>) {
     return (
-        <Form form={form} layout="vertical" onFinish={onSubmit} initialValues={record}>
+        <Form form={form} layout="vertical" onFinish={onSubmit} initialValues={record ? { ...record } : undefined}>
             { children }
         </Form>
     )

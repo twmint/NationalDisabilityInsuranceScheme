@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Drawer, Form, message, Table } from "antd";
+import { App, Form, Table } from "antd";
 import APIManager, { APIError } from "@/lib/apiManager";
 import { useDebounce } from "@/hooks/useDebounce";
 import TableActions, { TableActionButton } from "@/components/TableActions";
-import EntryForm from "@/components/EntryForm";
+import FormDrawer, { FormDrawerActions } from "@/components/FormDrawer";
 
 export type ListViewColumn<T> = {
     key: string;
@@ -22,6 +22,7 @@ export type ListViewContext<T> = {
     setFilterValue: (key: string, value: string | undefined) => void;
     refresh: () => void;
     openDrawer: (row?: T) => void;
+    deleteRow: (row: T) => void;
 };
 
 export type ListViewProps<T extends Record<string, unknown> & { id?: number | string }> = {
@@ -30,7 +31,8 @@ export type ListViewProps<T extends Record<string, unknown> & { id?: number | st
     columns: ListViewColumn<T>[];
     renderActions?: (row: T, ctx: ListViewContext<T>) => TableActionButton<T>[];
     children: (ctx: ListViewContext<T>) => React.ReactNode;
-    renderForm?: (record: T | undefined) => React.ReactNode;
+    renderForm?: (record: T | undefined, actions: FormDrawerActions) => React.ReactNode;
+    drawerWidth?: number;
 };
 
 function ListView<T extends Record<string, unknown> & { id?: number | string }>({
@@ -40,6 +42,7 @@ function ListView<T extends Record<string, unknown> & { id?: number | string }>(
     renderActions,
     children,
     renderForm,
+    drawerWidth,
 }: ListViewProps<T>) {
     const [search, setSearch] = useState("");
     const [filterValues, setFilterValues] = useState<Record<string, string | undefined>>({});
@@ -50,7 +53,9 @@ function ListView<T extends Record<string, unknown> & { id?: number | string }>(
     const [loading, setLoading] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedRow, setSelectedRow] = useState<T | null>(null);
+    const [submitting, setSubmitting] = useState(false);
     const [form] = Form.useForm();
+    const { modal, message } = App.useApp();
     const debouncedSearch = useDebounce(search, 350);
 
     useEffect(() => {
@@ -67,14 +72,22 @@ function ListView<T extends Record<string, unknown> & { id?: number | string }>(
             for (const [key, value] of Object.entries(filterValues)) {
                 if (value) params.set(key, value);
             }
+
             params.set("page", String(page));
             params.set("pageSize", String(pageSize));
 
             const body = await APIManager.getInstance().get<{ data: T[]; total: number }>(
                 `${resourcePath}?${params.toString()}`
             );
+            const fetchedTotal = body.total ?? 0;
+            const maxPage = Math.max(1, Math.ceil(fetchedTotal / pageSize));
+
+            if (page > maxPage) {
+                setPage(maxPage);
+                return;
+            }
             setRows(body.data ?? []);
-            setTotal(body.total ?? 0);
+            setTotal(fetchedTotal);
         } catch (error) {
             console.error("Error loading rows:", error);
         } finally {
@@ -99,9 +112,11 @@ function ListView<T extends Record<string, unknown> & { id?: number | string }>(
         setFilterValue,
         refresh: () => loadRows(),
         openDrawer: (row) => { setSelectedRow(row ?? null); setDrawerOpen(true); },
+        deleteRow: (row) => handleDelete(row),
     };
 
     async function handleSubmit(data: Record<string, unknown>) {
+        setSubmitting(true);
         try {
             if (selectedRow) {
                 await APIManager.getInstance().patch(`${resourcePath}/${selectedRow.id}`, data);
@@ -112,10 +127,49 @@ function ListView<T extends Record<string, unknown> & { id?: number | string }>(
             setDrawerOpen(false);
         } catch (error) {
             console.error("Error saving entry:", error);
-            const description = error instanceof APIError ? error.message : "Something went wrong. Please try again.";
-            message.error(description);
+
+            if (error instanceof APIError && error.details) {
+                const formFields = new Set(form.getFieldsError().map((field) => String(field.name[0])));
+                const entries = Object.entries(error.details);
+                const actionable = entries.filter(([field]) => formFields.has(field));
+                const nonActionable = entries.filter(([field]) => !formFields.has(field));
+
+                if (actionable.length > 0) {
+                    form.setFields(actionable.map(([field, errorMessage]) => ({ name: field, errors: [errorMessage] })));
+                }
+                
+                if (nonActionable.length > 0) {
+                    message.error(nonActionable.map(([, errorMessage]) => errorMessage).join(" "));
+                } else if (actionable.length === 0) {
+                    message.error(error.message);
+                }
+            } else {
+                const description = error instanceof APIError ? error.message : "Something went wrong. Please try again.";
+                message.error(description);
+            }
+        } finally {
+            setSubmitting(false);
         }
     };
+
+    function handleDelete(row: T) {
+        modal.confirm({
+            title: `Delete ${entityLabel}?`,
+            content: "This action cannot be undone.",
+            okText: "Delete",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                try {
+                    await APIManager.getInstance().delete(`${resourcePath}/${row.id}`);
+                    ctx.refresh();
+                } catch (error) {
+                    console.error("Error deleting entry:", error);
+                    const description = error instanceof APIError ? error.message : "Something went wrong. Please try again.";
+                    message.error(description);
+                }
+            },
+        });
+    }
 
     return (
         <div>
@@ -152,15 +206,18 @@ function ListView<T extends Record<string, unknown> & { id?: number | string }>(
                 />
             </div>
             {renderForm &&
-            <Drawer
-                title={selectedRow ? `Edit ${entityLabel}` : `Add ${entityLabel}`}
+            <FormDrawer<T>
                 open={drawerOpen}
+                title={selectedRow ? `Edit ${entityLabel}` : `Add ${entityLabel}`}
+                width={drawerWidth}
+                submitting={submitting}
+                form={form}
+                record={selectedRow ?? undefined}
                 onClose={() => setDrawerOpen(false)}
+                onSubmit={handleSubmit}
             >
-                <EntryForm<T> form={form} onSubmit={handleSubmit} record={selectedRow ?? undefined}>
-                    {renderForm(selectedRow ?? undefined)}
-                </EntryForm>
-            </Drawer>}
+                {(actions) => renderForm(selectedRow ?? undefined, actions)}
+            </FormDrawer>}
         </div>
     );
 };

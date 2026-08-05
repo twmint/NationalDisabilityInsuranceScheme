@@ -1,13 +1,13 @@
 export type APIErrorBody = {
     code: string;
     message: string;
-    details?: unknown;
+    details?: Record<string, string>;
 };
 
 export class APIError extends Error {
     public code: string;
     public status: number;
-    public details?: unknown;
+    public details?: Record<string, string>;
 
     constructor(status: number, body: APIErrorBody) {
         super(body.message);
@@ -64,7 +64,7 @@ export default class APIManager {
             "Content-Type": "application/json",
             ...(this.authToken ? { "Authorization": `Bearer ${this.authToken}` } : {}),
         };
-
+        console.log(`API Request: ${options.method} ${url}`, options.body ? `Body: ${options.body}` : "");
         const response = await fetch(url, { ...options, headers });
         if (!response.ok) {
             const body = await response.json().catch(() => null);
