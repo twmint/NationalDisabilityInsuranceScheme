@@ -61,7 +61,7 @@ export default function ClientsListView({
                         label="Date of Birth"
                         rules={[{ required: true, message: "Date of birth is required." }]}
                     >
-                        <DatePicker />
+                        <DatePicker disabledDate={(current) => current.isAfter(dayjs(), "day")} />
                     </Form.Item>
                     <Form.Item  
                         name="ndis_number"

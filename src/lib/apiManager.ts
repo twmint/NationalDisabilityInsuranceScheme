@@ -64,7 +64,6 @@ export default class APIManager {
             "Content-Type": "application/json",
             ...(this.authToken ? { "Authorization": `Bearer ${this.authToken}` } : {}),
         };
-        console.log(`API Request: ${options.method} ${url}`, options.body ? `Body: ${options.body}` : "");
         const response = await fetch(url, { ...options, headers });
         if (!response.ok) {
             const body = await response.json().catch(() => null);

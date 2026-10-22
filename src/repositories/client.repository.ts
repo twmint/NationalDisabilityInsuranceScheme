@@ -124,6 +124,16 @@ export async function GetClients(filters: ClientFilters): Promise<{ data: Client
     };
 }
 
+export async function GetClientOptions(): Promise<{ id: number; first_name: string; last_name: string }[]> {
+    return await db
+        .selectFrom("client")
+        .select(["id", "first_name", "last_name"])
+        .where("deleted_at", "is", null)
+        .orderBy("first_name")
+        .orderBy("last_name")
+        .execute();
+}
+
 export async function AddClient(clientData: Client) {
     if (typeof clientData.dob !== "string" || !isValidIsoDate(clientData.dob)) {
         throw new ValidationError({ dob: "Date of birth must be a valid ISO date (YYYY-MM-DD)." });

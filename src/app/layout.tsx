@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "My NDIS Portal",
-  description: "Witty NDIS Portal",
+  description: "Manage NDIS participants, providers and invoices.",
 };
 
 export default function RootLayout({
